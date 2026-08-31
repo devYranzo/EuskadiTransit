@@ -1,0 +1,30 @@
+services:
+  # Servidor de mapas vectorial
+  tile-server:
+    image: ghcr.io/maplibre/martin:latest
+    ports:
+      - "5000:3000"
+    volumes:
+      - ./Data:/Data
+    command: ["--webui", "enable-for-all", "/Data"]
+    restart: unless-stopped
+
+  # Tu futuro backend en Python (FastAPI) - Lo dejamos preparado
+  # backend:
+  #  build: .
+  #  ports:
+  #    - "8000:8000"
+  #  environment:
+  #    - REDIS_URL=redis://redis:6379
+  #  volumes:
+  #    - .:/app
+  #  depends_on:
+  #    - redis
+  #  restart: unless-stopped
+
+  # Redis para caché de datos en tiempo real (GTFS-RT)
+  # redis:
+  #  image: redis:alpine
+  #  ports:
+  #    - "6379:6379"
+  #  restart: unless-stopped
