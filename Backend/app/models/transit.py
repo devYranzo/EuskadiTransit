@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 from app.core.database import Base
 
@@ -17,3 +17,11 @@ class Route(Base):
     route_short_name = Column(String, nullable=True)
     route_long_name = Column(String, nullable=True)
     route_color = Column(String, nullable=True)
+
+class Shape(Base):
+    __tablename__ = "shapes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    shape_id = Column(String, index=True, nullable=False)
+    # Geometría espacial LINESTRING para el trazado de la ruta
+    geom = Column(Geometry(geometry_type="LINESTRING", srid=4326), nullable=False)

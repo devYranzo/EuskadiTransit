@@ -1,24 +1,18 @@
-# backend/app/services/gtfs_parser.py
 import os
 import partridge as pt
 from sqlalchemy.orm import Session
 from geoalchemy2.elements import WKTElement
-from app.models.transit import Stop, Route
+from app.models.transit import Stop, Route, Shape
 
 def load_gtfs_feed(feed_filename: str, db: Session):
-    """
-    Procesa un archivo ZIP GTFS ubicado en data/raw_gtfs/
-    y persiste las paradas y rutas en la base de datos PostGIS.
-    """
     feed_path = os.path.join("/app", "data", "raw_gtfs", feed_filename)
 
     if not os.path.exists(feed_path):
         raise FileNotFoundError(f"No se encuentra el archivo GTFS: {feed_path}")
 
-    # Cargar el feed filtrando fechas con partridge
     feed = pt.load_feed(feed_path)
 
-    # 1. Procesar Paradas (stops.txt)
+    # 1. Procesar Paradas
     stops_count = 0
     for _, row in feed.stops.iterrows():
         stop_id = str(row["stop_id"])
@@ -26,20 +20,14 @@ def load_gtfs_feed(feed_filename: str, db: Session):
         lat = float(row["stop_lat"])
         lon = float(row["stop_lon"])
 
-        # Crear elemento geométrico espacial POINT con SRID 4326 (WGS 84)
         point_wkt = WKTElement(f'POINT({lon} {lat})', srid=4326)
 
         existing_stop = db.query(Stop).filter(Stop.stop_id == stop_id).first()
         if not existing_stop:
-            new_stop = Stop(
-                stop_id=stop_id,
-                stop_name=stop_name,
-                geom=point_wkt
-            )
-            db.add(new_stop)
+            db.add(Stop(stop_id=stop_id, stop_name=stop_name, geom=point_wkt))
             stops_count += 1
 
-    # 2. Procesar Rutas (routes.txt)
+    # 2. Procesar Rutas
     routes_count = 0
     for _, row in feed.routes.iterrows():
         route_id = str(row["route_id"])
@@ -49,19 +37,35 @@ def load_gtfs_feed(feed_filename: str, db: Session):
 
         existing_route = db.query(Route).filter(Route.route_id == route_id).first()
         if not existing_route:
-            new_route = Route(
+            db.add(Route(
                 route_id=route_id,
                 route_short_name=route_short_name,
                 route_long_name=route_long_name,
                 route_color=f"#{route_color}" if not route_color.startswith("#") else route_color
-            )
-            db.add(new_route)
+            ))
             routes_count += 1
+
+    # 3. Procesar Trazados (Shapes) si el feed los incluye
+    shapes_count = 0
+    if hasattr(feed, "shapes") and feed.shapes is not None and not feed.shapes.empty:
+        # Agrupar puntos por shape_id ordenados por secuencia
+        grouped_shapes = feed.shapes.sort_values(["shape_id", "shape_pt_sequence"]).groupby("shape_id")
+
+        for shape_id, group in grouped_shapes:
+            coords = []
+            for _, row in group.iterrows():
+                coords.append(f"{float(row['shape_pt_lon'])} {float(row['shape_pt_lat'])}")
+
+            if len(coords) >= 2:
+                linestring_wkt = WKTElement(f"LINESTRING({','.join(coords)})", srid=4326)
+                db.add(Shape(shape_id=str(shape_id), geom=linestring_wkt))
+                shapes_count += 1
 
     db.commit()
     return {
         "status": "success",
         "file": feed_filename,
         "stops_imported": stops_count,
-        "routes_imported": routes_count
+        "routes_imported": routes_count,
+        "shapes_imported": shapes_count
     }
