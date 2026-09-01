@@ -9,18 +9,35 @@ services:
     command: ["--webui", "enable-for-all", "/Data"]
     restart: unless-stopped
 
-  # Tu futuro backend en Python (FastAPI) - Lo dejamos preparado
-  # backend:
-  #  build: .
-  #  ports:
-  #    - "8000:8000"
-  #  environment:
-  #    - REDIS_URL=redis://redis:6379
-  #  volumes:
-  #    - .:/app
-  #  depends_on:
-  #    - redis
-  #  restart: unless-stopped
+  # Base de datos PostGIS
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: euskadi_user
+      POSTGRES_PASSWORD: euskadi_password
+      POSTGRES_DB: euskadi_transit
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Backend FastAPI
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://euskadi_user:euskadi_password@db:5432/euskadi_transit
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
 
   # Redis para caché de datos en tiempo real (GTFS-RT)
   # redis:
