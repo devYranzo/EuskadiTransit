@@ -13,6 +13,10 @@
       "minzoom": 0,
       "maxzoom": 14
     },
+    "stopsSource": {
+      "type": "vector",
+      "tiles": ["http://10.0.2.2:5000/stops/{z}/{x}/{y}"]
+    },
     "natural_earth_shaded_relief": {
       "maxzoom": 6,
       "tileSize": 256,
@@ -2160,6 +2164,18 @@
         "text-color": "#633",
         "text-halo-color": "rgba(255,255,255,0.7)",
         "text-halo-width": 1
+      }
+    },
+    {
+      "id": "stops-layer",
+      "type": "circle",
+      "source": "stopsSource",
+      "source-layer": "stops",
+      "paint": {
+        "circle-radius": 5,
+        "circle-color": "#15803d",
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "#ffffff"
       }
     }
   ],

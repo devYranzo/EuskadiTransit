@@ -1,14 +1,4 @@
 services:
-  # Servidor de mapas vectorial
-  tile-server:
-    image: ghcr.io/maplibre/martin:latest
-    ports:
-      - "5000:3000"
-    volumes:
-      - ./Data:/Data
-    command: ["--webui", "enable-for-all", "/Data"]
-    restart: unless-stopped
-
   # Base de datos PostGIS
   db:
     image: postgis/postgis:16-3.4
@@ -21,6 +11,20 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+
+  # Servidor de mapas vectorial
+  tile-server:
+    image: ghcr.io/maplibre/martin:latest
+    ports:
+      - "5000:3000"
+    environment:
+      - DATABASE_URL=postgresql://euskadi_user:euskadi_password@db:5432/euskadi_transit
+    volumes:
+      - ./Data:/Data
+    command: ["--webui", "enable-for-all", "/Data"]
+    restart: unless-stopped
+    depends_on:
+      - db
 
   # Backend FastAPI
   api:
